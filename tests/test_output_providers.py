@@ -2,11 +2,18 @@
 
 from PIL import Image
 import pytest
-from gh_space_shooter.output import GifOutputProvider, WebPOutputProvider, resolve_output_provider
+
+from gh_space_shooter.output import (
+    GifOutputProvider,
+    WebPOutputProvider,
+    media_type_for_output_format,
+    output_path_for_format,
+    resolve_output_provider,
+    supported_output_formats,
+)
 
 
-
-def create_test_frame(color="red"):
+def create_test_frame(color: str = "red") -> Image.Image:
     """Helper to create a test frame."""
     img = Image.new("RGB", (10, 10), color)
     return img
@@ -60,7 +67,6 @@ def test_resolve_gif_provider():
     assert isinstance(provider, GifOutputProvider)
 
 
-
 def test_resolve_webp_provider():
     """resolve_output_provider should return WebPOutputProvider for .webp files."""
     provider = resolve_output_provider("output.webp")
@@ -76,8 +82,27 @@ def test_resolve_unsupported_format():
 
 def test_resolve_case_insensitive():
     """resolve_output_provider should handle uppercase extensions."""
-    provider = resolve_output_provider("output.GIF", )
+    provider = resolve_output_provider("output.GIF")
     assert isinstance(provider, GifOutputProvider)
 
-    provider = resolve_output_provider("output.WEBP", )
+    provider = resolve_output_provider("output.WEBP")
     assert isinstance(provider, WebPOutputProvider)
+
+
+def test_supported_output_formats_only_includes_gif_webp() -> None:
+    assert supported_output_formats() == ("gif", "webp")
+
+
+def test_media_type_for_output_format() -> None:
+    assert media_type_for_output_format("gif") == "image/gif"
+    assert media_type_for_output_format("webp") == "image/webp"
+
+
+def test_media_type_for_output_format_raises_on_invalid() -> None:
+    with pytest.raises(ValueError, match="Invalid format"):
+        media_type_for_output_format("svg")
+
+
+def test_output_path_for_format() -> None:
+    assert output_path_for_format("gif", base_name="demo") == "demo.gif"
+    assert output_path_for_format("webp", base_name="demo") == "demo.webp"
