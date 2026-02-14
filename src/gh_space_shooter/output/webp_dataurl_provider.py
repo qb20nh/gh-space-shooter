@@ -13,7 +13,7 @@ _SECTION_START_MARKER = "<!--START_SECTION:space-shooter-->"
 _SECTION_END_MARKER = "<!--END_SECTION:space-shooter-->"
 
 
-class WebpDataUrlOutputProvider(OutputProvider):
+class WebpDataUrlOutputProvider(OutputProvider[Image.Image]):
     """Output provider that generates WebP as a data URL and writes an HTML img tag to a file."""
 
     def __init__(self, output_path: str):

@@ -1,14 +1,21 @@
 """Base class for output format providers."""
 
 from abc import ABC, abstractmethod
-from typing import Iterator
+from io import BytesIO
+from typing import TYPE_CHECKING, Generic, Iterator, TypeVar
+
 from PIL import Image
 
+if TYPE_CHECKING:
+    from ..game.animator import Animator
 
-class OutputProvider(ABC):
+FrameT = TypeVar("FrameT")
+
+
+class OutputProvider(ABC, Generic[FrameT]):
     """Abstract base class for output format providers."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str = ""):
         """
         Initialize the provider with an output file path.
 
@@ -18,19 +25,32 @@ class OutputProvider(ABC):
         self.path = path
 
     @abstractmethod
-    def encode(self, frames: Iterator[Image.Image], frame_duration: int) -> bytes:
+    def encode(self, frames: Iterator[FrameT], frame_duration: int) -> bytes:
         """
         Encode frames into the output format.
 
         Args:
-            frames: Iterator of PIL Images
+            frames: Iterator of frame payloads consumed by this provider
+            frame_duration: Frame duration in milliseconds
 
         Returns:
             Encoded output as bytes
         """
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
+    def frame_stream(
+        self, animator: "Animator", max_frames: int | None
+    ) -> Iterator[FrameT] | None:
+        """
+        Optionally provide a custom frame stream for this output provider.
+
+        Providers that consume default raster frames should keep the default
+        implementation and return ``None``.
+        """
+        del animator
+        del max_frames
+        return None
+
     def write(self, data: bytes) -> None:
         """
         Write encoded data to a file.
@@ -38,4 +58,39 @@ class OutputProvider(ABC):
         Args:
             data: Encoded data to write
         """
-        pass
+        if not self.path:
+            raise ValueError("Output path not set")
+        with open(self.path, "wb") as f:
+            f.write(data)
+
+
+class PillowSequenceOutputProvider(OutputProvider[Image.Image], ABC):
+    """Template output provider for Pillow-supported animated image formats."""
+
+    @property
+    @abstractmethod
+    def output_format(self) -> str:
+        """Pillow format identifier (for example, ``gif`` or ``webp``)."""
+        raise NotImplementedError
+
+    def encode(self, frames: Iterator[Image.Image], frame_duration: int) -> bytes:
+        frame_list = list(frames)
+        if not frame_list:
+            return b""
+
+        buffer = BytesIO()
+        frame_list[0].save(
+            buffer,
+            format=self.output_format,
+            save_all=True,
+            append_images=frame_list[1:],
+            duration=frame_duration,
+            loop=0,
+            **self.save_options,
+        )
+        return buffer.getvalue()
+
+    @property
+    def save_options(self) -> dict[str, object]:
+        """Additional Pillow ``save`` kwargs for this format."""
+        return {}
