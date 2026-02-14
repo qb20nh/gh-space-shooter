@@ -3,6 +3,7 @@
 from .animator import Animator
 from .drawables import Bullet, Drawable, Enemy, Explosion, Ship, Starfield
 from .game_state import GameState
+from .raster_animation import generate_raster_frames
 from .renderer import Renderer
 from .strategies.base_strategy import Action, BaseStrategy
 from .strategies.column_strategy import ColumnStrategy
@@ -16,6 +17,7 @@ __all__ = [
     "Enemy",
     "Explosion",
     "GameState",
+    "generate_raster_frames",
     "Renderer",
     "Ship",
     "Starfield",
