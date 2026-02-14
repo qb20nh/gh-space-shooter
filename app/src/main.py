@@ -10,9 +10,9 @@ from fastapi.responses import HTMLResponse, Response
 # from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from gh_space_shooter.game import Animator, ColumnStrategy, RandomStrategy, RowStrategy, BaseStrategy
+from gh_space_shooter.animation_pipeline import encode_animation
+from gh_space_shooter.game import ColumnStrategy, RandomStrategy, RowStrategy, BaseStrategy
 from gh_space_shooter.github_client import GitHubAPIError, GitHubClient
-from gh_space_shooter.output import GifOutputProvider
 
 load_dotenv()
 
@@ -37,10 +37,14 @@ def generate_gif(username: str, strategy: str, token: str) -> bytes:
     strategy_class: type[BaseStrategy] = STRATEGY_MAP.get(strategy, RandomStrategy)
     strat = strategy_class()
 
-    animator = Animator(data, strat, fps=25, watermark=True)
-    provider = GifOutputProvider("dummy.gif")
-    encoded = provider.encode(animator.generate_frames(max_frames=250), frame_duration=1000 // 25)
-    return encoded
+    return encode_animation(
+        data=data,
+        strategy=strat,
+        output_path="output.gif",
+        fps=25,
+        watermark=True,
+        max_frames=250,
+    )
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):

@@ -9,9 +9,10 @@ import typer
 from dotenv import load_dotenv
 from rich.console import Console
 
+from .animation_pipeline import encode_animation
 from .constants import DEFAULT_FPS
 from .console_printer import ContributionConsolePrinter
-from .game import Animator, ColumnStrategy, RandomStrategy, RowStrategy, BaseStrategy
+from .game import ColumnStrategy, RandomStrategy, RowStrategy, BaseStrategy
 from .github_client import ContributionData, GitHubAPIError, GitHubClient
 from .output import resolve_output_provider
 from .output import OutputProvider, WebpDataUrlOutputProvider
@@ -191,22 +192,17 @@ def _resolve_provider(file_path: str, is_dataurl: bool) -> OutputProvider:
         raise CLIError(str(e))
 
 
-def _setup_animator(strategy_name: str, data: ContributionData, fps: int, watermark: bool) -> Animator:
-    """
-    Set up strategy and animator.
-    """
+def _resolve_strategy(strategy_name: str) -> BaseStrategy:
+    """Resolve a strategy instance by CLI name."""
     if strategy_name == "column":
-        strategy: BaseStrategy = ColumnStrategy()
-    elif strategy_name == "row":
-        strategy = RowStrategy()
-    elif strategy_name == "random":
-        strategy = RandomStrategy()
-    else:
-        raise CLIError(
-            f"Unknown strategy '{strategy_name}'. Available: column, row, random"
-        )
-
-    return Animator(data, strategy, fps=fps, watermark=watermark)
+        return ColumnStrategy()
+    if strategy_name == "row":
+        return RowStrategy()
+    if strategy_name == "random":
+        return RandomStrategy()
+    raise CLIError(
+        f"Unknown strategy '{strategy_name}'. Available: column, row, random"
+    )
 
 
 def _generate_output(
@@ -245,12 +241,20 @@ def _generate_output(
         ext = Path(provider.path).suffix[1:].upper()
         console.print(f"\n[bold blue]Generating {ext} animation...[/bold blue]")
 
-    # Setup strategy and animator
-    animator = _setup_animator(strategy_name, data, fps, watermark)
+    # Resolve strategy
+    strategy = _resolve_strategy(strategy_name)
 
     # Encode and write
     try:
-        encoded = provider.encode(animator.generate_frames(max_frames), 1000 // fps)
+        encoded = encode_animation(
+            data=data,
+            strategy=strategy,
+            output_path=provider.path,
+            fps=fps,
+            watermark=watermark,
+            max_frames=max_frames,
+            provider=provider,
+        )
         provider.write(encoded)
 
         # Console output based on provider type
